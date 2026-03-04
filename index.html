@@ -2,14 +2,36 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>3 Lane Car Game</title>
+<title>Maurya 3D Racing</title>
 
 <style>
 body{
     margin:0;
     overflow:hidden;
-    background:linear-gradient(#87CEEB 60%, #444 60%);
     font-family:Arial;
+    background:black;
+}
+
+/* Start Screen */
+#startScreen{
+    position:absolute;
+    width:100%;
+    height:100%;
+    background:black;
+    color:white;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    flex-direction:column;
+    z-index:10;
+}
+
+button{
+    padding:12px 25px;
+    font-size:18px;
+    border:none;
+    border-radius:8px;
+    cursor:pointer;
 }
 
 /* Road */
@@ -17,174 +39,252 @@ body{
     position:absolute;
     width:100%;
     height:100%;
+    background:#111;
+    overflow:hidden;
+}
+
+.road::before{
+    content:"";
+    position:absolute;
+    width:100%;
+    height:200%;
+    background:repeating-linear-gradient(
+        transparent 0px,
+        transparent 40px,
+        rgba(255,255,255,0.4) 40px,
+        rgba(255,255,255,0.4) 60px
+    );
+    animation: roadMove 1s linear infinite;
+}
+
+@keyframes roadMove{
+    from{ transform:translateY(0); }
+    to{ transform:translateY(-60px); }
 }
 
 .lane{
     position:absolute;
     width:33.33%;
     height:100%;
-    border-left:2px dashed white;
+    border-left:2px dashed rgba(255,255,255,0.3);
 }
+.lane:nth-child(1){left:0%;}
+.lane:nth-child(2){left:33.33%;}
+.lane:nth-child(3){left:66.66%;}
 
-.lane:nth-child(1){ left:0%; }
-.lane:nth-child(2){ left:33.33%; }
-.lane:nth-child(3){ left:66.66%; }
-
-/* Player Car */
+/* 3D Player Car */
 .car{
     position:absolute;
     bottom:100px;
+    width:80px;
+    height:140px;
+    background:linear-gradient(145deg,#ff1a1a,#990000);
+    border-radius:20px 20px 15px 15px;
+    box-shadow:
+        inset -5px -5px 15px rgba(0,0,0,0.6),
+        inset 5px 5px 15px rgba(255,255,255,0.2),
+        0 10px 25px rgba(255,0,0,0.6);
+    transition:0.2s;
+}
+
+/* Glass */
+.car::before{
+    content:"";
+    position:absolute;
+    top:15px;
+    left:15px;
+    width:50px;
+    height:45px;
+    background:linear-gradient(#222,#555);
+    border-radius:10px;
+}
+
+/* Headlight */
+.car::after{
+    content:"";
+    position:absolute;
+    top:-45px;
+    left:5px;
     width:70px;
-    height:120px;
-    background:red;
-    border-radius:15px;
-    transition:all 0.2s;
-    box-shadow:0 15px 30px rgba(0,0,0,0.5);
+    height:50px;
+    background:radial-gradient(rgba(255,255,200,0.8),transparent);
+    filter:blur(20px);
 }
 
 /* Enemy */
 .enemy{
     position:absolute;
     top:-150px;
-    width:70px;
-    height:120px;
-    background:blue;
-    border-radius:15px;
+    width:80px;
+    height:140px;
+    background:linear-gradient(blue,darkblue);
+    border-radius:20px;
+    box-shadow:0 0 20px blue;
 }
 
-/* Score */
-.score{
+/* Panel */
+.panel{
     position:absolute;
-    top:20px;
-    left:20px;
-    font-size:22px;
+    top:10px;
+    left:10px;
     color:white;
-    font-weight:bold;
+    font-size:16px;
 }
 
-/* Mobile Buttons */
-.controls{
+/* Branding */
+.brand{
     position:absolute;
-    bottom:20px;
+    bottom:10px;
     width:100%;
     text-align:center;
-}
-
-.btn{
-    padding:15px 25px;
-    margin:5px;
     font-size:18px;
-    border:none;
-    border-radius:10px;
-    background:black;
-    color:white;
+    color:gold;
+    font-weight:bold;
+    text-shadow:0 0 10px gold;
 }
 </style>
 </head>
 
 <body>
 
+<div id="startScreen">
+<h1>🔥 Maurya 3D Racing 🔥</h1>
+<button onclick="startGame()">Start Game</button>
+<p>Swipe Left/Right to Move<br>Tap to Jump</p>
+</div>
+
 <div class="road">
-    <div class="lane"></div>
-    <div class="lane"></div>
-    <div class="lane"></div>
+<div class="lane"></div>
+<div class="lane"></div>
+<div class="lane"></div>
 </div>
 
 <div class="car" id="player"></div>
-<div class="score" id="score">Score: 0</div>
 
-<div class="controls">
-    <button class="btn" onclick="moveLeft()">⬅</button>
-    <button class="btn" onclick="jump()">⬆</button>
-    <button class="btn" onclick="moveRight()">➡</button>
+<div class="panel">
+Score: <span id="score">0</span><br>
+High Score: <span id="highScore">0</span><br>
+Lives: <span id="lives">3</span>
 </div>
+
+<div class="brand">🚗 Maurya Racing Car Game 🚗</div>
+
+<audio id="bgMusic" loop>
+<source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" type="audio/mpeg">
+</audio>
 
 <script>
 
-let player = document.getElementById("player");
-let scoreDisplay = document.getElementById("score");
+let player=document.getElementById("player");
+let score=0;
+let lives=3;
+let lane=1;
+let speed=6;
+let jumping=false;
+let touchStartX=0;
 
-let lane = 1;
-let score = 0;
-let jumping = false;
+let highScore=localStorage.getItem("highScore")||0;
+document.getElementById("highScore").innerText=highScore;
 
-/* Set Lane Position */
 function setLane(){
-    let laneWidth = window.innerWidth / 3;
-    player.style.left = (lane * laneWidth + laneWidth/2 - 35) + "px";
+let laneWidth=window.innerWidth/3;
+player.style.left=(lane*laneWidth+laneWidth/2-40)+"px";
 }
 setLane();
 
-/* Move Functions */
-function moveLeft(){
-    if(lane > 0){
-        lane--;
-        setLane();
-    }
+function startGame(){
+document.getElementById("startScreen").style.display="none";
+document.getElementById("bgMusic").play();
 }
 
-function moveRight(){
-    if(lane < 2){
-        lane++;
-        setLane();
-    }
-}
+function moveLeft(){ if(lane>0){lane--; setLane();}}
+function moveRight(){ if(lane<2){lane++; setLane();}}
 
 function jump(){
-    if(!jumping){
-        jumping = true;
-        player.style.bottom = "200px";
-        setTimeout(()=>{
-            player.style.bottom = "100px";
-            jumping = false;
-        },400);
-    }
+if(!jumping){
+jumping=true;
+player.style.bottom="220px";
+setTimeout(()=>{player.style.bottom="100px"; jumping=false;},400);
+}
 }
 
-/* Keyboard Support */
-document.addEventListener("keydown", function(e){
-    if(e.key === "ArrowLeft") moveLeft();
-    if(e.key === "ArrowRight") moveRight();
-    if(e.key === "ArrowUp") jump();
+/* Touch */
+document.addEventListener("touchstart",e=>{
+touchStartX=e.touches[0].clientX;
 });
 
-/* Enemy Create */
+document.addEventListener("touchend",e=>{
+let touchEndX=e.changedTouches[0].clientX;
+let diff=touchEndX-touchStartX;
+
+if(Math.abs(diff)>40){
+if(diff>0) moveRight();
+else moveLeft();
+}else{
+jump();
+}
+});
+
+/* Keyboard */
+document.addEventListener("keydown",e=>{
+if(e.key==="ArrowLeft")moveLeft();
+if(e.key==="ArrowRight")moveRight();
+if(e.key==="ArrowUp")jump();
+if(e.key===" ") speed+=5;
+});
+
+/* Enemy */
 function createEnemy(){
-    let enemy = document.createElement("div");
-    enemy.classList.add("enemy");
+let enemy=document.createElement("div");
+enemy.classList.add("enemy");
+let enemyLane=Math.floor(Math.random()*3);
+let laneWidth=window.innerWidth/3;
+enemy.style.left=(enemyLane*laneWidth+laneWidth/2-40)+"px";
+document.body.appendChild(enemy);
 
-    let enemyLane = Math.floor(Math.random()*3);
-    let laneWidth = window.innerWidth / 3;
-    enemy.style.left = (enemyLane * laneWidth + laneWidth/2 - 35) + "px";
+let topPos=-150;
 
-    document.body.appendChild(enemy);
+let move=setInterval(()=>{
+topPos+=speed;
+enemy.style.top=topPos+"px";
 
-    let topPos = -150;
-    let move = setInterval(()=>{
-        topPos += 5;
-        enemy.style.top = topPos + "px";
+let pRect=player.getBoundingClientRect();
+let eRect=enemy.getBoundingClientRect();
 
-        let playerRect = player.getBoundingClientRect();
-        let enemyRect = enemy.getBoundingClientRect();
+if(
+pRect.left<eRect.right &&
+pRect.right>eRect.left &&
+pRect.top<eRect.bottom &&
+pRect.bottom>eRect.top
+){
+enemy.remove();
+clearInterval(move);
+lives--;
+document.getElementById("lives").innerText=lives;
+if(lives<=0){ gameOver(); }
+}
 
-        if(
-            playerRect.left < enemyRect.right &&
-            playerRect.right > enemyRect.left &&
-            playerRect.top < enemyRect.bottom &&
-            playerRect.bottom > enemyRect.top
-        ){
-            alert("Game Over! Score: " + score);
-            location.reload();
-        }
+if(topPos>window.innerHeight){
+clearInterval(move);
+enemy.remove();
+score++;
+document.getElementById("score").innerText=score;
 
-        if(topPos > window.innerHeight){
-            clearInterval(move);
-            enemy.remove();
-            score++;
-            scoreDisplay.innerText = "Score: " + score;
-        }
+if(score>highScore){
+highScore=score;
+localStorage.setItem("highScore",highScore);
+document.getElementById("highScore").innerText=highScore;
+}
 
-    },20);
+if(score%10==0){ speed+=1; }
+}
+
+},20);
+}
+
+function gameOver(){
+alert("Game Over! Score: "+score);
+location.reload();
 }
 
 setInterval(createEnemy,1500);
@@ -192,4 +292,4 @@ setInterval(createEnemy,1500);
 </script>
 
 </body>
-</html>
+    </html>
